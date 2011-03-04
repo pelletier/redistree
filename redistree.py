@@ -35,6 +35,10 @@ class NoParent(RedisTreeException):
         self.value = "Parent of %s does not exist." % path
 
 
+class InvalidMoveOperation(RedisTreeExcetpion):
+    def __init__(self, msg):
+        self.value = msg
+
 
 class RedisTree(object):
 
@@ -183,6 +187,9 @@ class RedisTree(object):
         """
         path1 = self._build_path(path1, mount1)
         path2 = self._build_path(path2, mount2)
+
+        if not path2.find(path1) == -1:
+            raise InvalidMoveOperation("Cannot move %s into its child %s" % (path1, path2))
         
         # We first have to check that the first exists
         if not self.redis.exists(path1):
