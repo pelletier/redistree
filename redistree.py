@@ -1,3 +1,5 @@
+#-*- coding: utf-8 -*-
+
 import json
 import redis
 
@@ -38,7 +40,7 @@ class RedisTree(object):
         """
         if path[-1] == '/': # Normalization: we don't want a / at the end
             path = path[:-1]
-        return "%spath:/%s/ROOT%s" % (self.redis_prefix, mount, path)
+        return u"%spath:/%s/ROOT%s" % (self.redis_prefix, mount, path)
 
 
 
@@ -57,7 +59,7 @@ class RedisTree(object):
         defaults.update(kwargs)
 
         # Attach a Redis connection instance or create a new one
-        self.redis = defaults[redis_instance]
+        self.redis = defaults['redis_instance']
         
         # Example of redis_params:
         #   redis_params = {
@@ -90,7 +92,7 @@ class RedisTree(object):
         # which is being delete.
         delete_keys = self.redis.keys('%s:delete:*' % self.redis_prefix)
 
-        for key in keys:
+        for key in delete_keys:
             if path.startswith(key):
                 # This happen during a delete
                 raise IsBeingDeleted(path, key)
@@ -113,8 +115,8 @@ class RedisTree(object):
         
         # If it does not, create it and inject data
         self.redis.set(path, json.dumps(data))
-
-        return (path, self.redis.get(path))
+ 
+        return (path, json.loads(self.redis.get(path)))
 
 
     def delete_node(self, mount, path):
@@ -145,7 +147,7 @@ class RedisTree(object):
         # Finally delete the lock key
         self.redis.delete(lock_key)
 
-        return (path, self.redis.get(path))
+        return (path, json.loads(self.redis.get(path)))
 
 
     def move(self, mount1, path1, mount2, path2):
