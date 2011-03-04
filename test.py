@@ -5,7 +5,7 @@ import json
  
 from redistree import *
 
-class TestRedisTreeBasic(unittest.TestCase):
+class TestRedisTreeCreate(unittest.TestCase):
 
     def setUp(self):
         "set up Test db redis (9)"
@@ -26,8 +26,6 @@ class TestRedisTreeBasic(unittest.TestCase):
         self.assertEqual(root[0], "path:/user#12/ROOT")    
         self.assertEqual(root[1]['name'], data['name'])    
 
-
-
     def test_create_unicode_path(self):
         """
         Test unicode path creation
@@ -39,3 +37,43 @@ class TestRedisTreeBasic(unittest.TestCase):
         )
         self.assertEqual(root[0], u"path:/user#12/ROOT/é")    
  
+    def test_create_multi_path(self):
+        """
+        Test long path
+        """
+        root = self.tree.create_node(
+            mount=u"user#12",
+            path="/aaa/bbb/ccc/ddd",
+            data={}
+        )
+        self.assertEqual(root[0], u"path:/user#12/ROOT/aaa/bbb/ccc/ddd")    
+    
+
+    def test_create_wrong_path(self):
+        """
+        Test faulty path creation
+        """
+        try:
+            root = self.tree.create_node(
+                    mount=u"user#12",
+                    path="///",
+                    data={}
+            )
+            print root
+        except RedisTreeException:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+   
+ class TestRedisTreeGetChildren(unittest.TestCase):
+    """
+    Test children listing
+    """
+
+    def setUp(self):
+        "set up Test db redis (9)"
+        self.redis_inst = redis.Redis(db=9)
+        self.redis_inst.flushdb()
+        self.tree = RedisTree(redis_instance=self.redis_inst)
+        
