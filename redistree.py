@@ -207,7 +207,7 @@ class RedisTree(object):
 
         return (path1, path2)
 
-    def get_children(self, mount, path):
+    def get_children(self, mount, path, with_info=True):
         """
         Returns the mounts and paths for all children in the given path
         """
@@ -224,10 +224,21 @@ class RedisTree(object):
 
         # Group names
         for key in keys:
-            key.replace('%s/' % path, '')
-            final = '/'.join([path, key[0]])
+            key = key.replace('%s/' % path, '')
+            k = key.split('/')[0]
+            final = '/'.join([path, k])
             final_keys.append(final)
 
         # Remove doubles
         # See http://www.peterbe.com/plog/uniqifiers-benchmark
-        return {}.fromkeys(final_keys).keys()
+        final_keys = {}.fromkeys(final_keys).keys()
+
+        if not with_info:
+            return final_keys
+
+        data = {}
+
+        for key in final_keys:
+            data[key] = json.loads(self.redis.get(key))
+            
+        return data
