@@ -221,7 +221,7 @@ class TestRedisTreeGetChildren(unittest.TestCase):
         self.redis_inst = redis.Redis(db=9)
         self.redis_inst.flushdb()
         self.tree = RedisTree(redis_instance=self.redis_inst)
- 
+  
     def test_children(self):
         mount = "user#13"
         for p in PATHS_1:
@@ -282,3 +282,5 @@ class TestRedisTreeMove(unittest.TestCase):
         )
         print children
         self.assertEqual(len(children), 3)
+ 
+ 
