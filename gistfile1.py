@@ -21,16 +21,22 @@ class RedisTree(object):
         def __init__(self, p):
             self.value = "Node at %s does not exist."
 
+    class IsBeingDeleted(RedisTreeException):
+        def __init__(self, path, key):
+            self.value = "Cannot create %s because %s is being deleted." % (path, key)
+
 
     #
     # PRIVATE METHODS
     #
 
-    def _build_path(self, mount, path='/'):
+    def _build_path(self, mount, path=''):
         """
         Compute a normalized path for the given data.
         """
-        return "%s/%s/ROOT%s" % (self.redis_prefix, mount, path)
+        if path[-1] == '/': # Normalization: we don't want a / at the end
+            path = path[:-1]
+        return "%spath:/%s/ROOT%s" % (self.redis_prefix, mount, path)
 
 
 
@@ -78,10 +84,29 @@ class RedisTree(object):
         if visible == None:
             data['visible'] = True
 
+        # We first have to check that the creation does not happen in a path
+        # which is being delete.
+        delete_keys = self.redis.keys('%s:delete:*' % self.redis_prefix)
+
+        for key in keys:
+            if path.startswith(key):
+                # This happen during a delete
+                raise IsBeingDeleted(path, key)
+
         # Test if the node does not already exist
         node_already_exists = self.redis.exists(path)
         if node_already_exists:
-            raise NodeAlreadyExists(path)
+            
+            # We loop to create a new unique path
+            counter = 0
+            temp_path = path
+
+            while self.redis.exists(temp_path):
+                # Increment
+                counter += 1
+                temp_path = "%s (%s)" % (path, counter)
+
+            path = temp_path
 
         
         # If it does not, create it and inject data
@@ -102,6 +127,26 @@ class RedisTree(object):
         if not node_exists:
             raise NodeDoesNotExist(path)
 
-        self.redis.hset(path, 'visible', False)
+        # We announce that we are ready to kick some keys in the ass.
+        # 60*5 = 5 minutes
+        lock_key = '%sdelete:%s' % (self.redis_prefix, path)
+        self.redis.setex(lock_key, 'deleting', 60*5)
+
+        # Delete all the keys for the given path
+        keys = self.redis.keys("%s*" % path)
+        for key in keys:
+            self.redis.hset(key, 'visible', False)
+
+        # Finally delete the lock key
+        self.redis.delete(lock_key)
 
         return (path, self.redis.get(path))
+
+
+    def move(self, mount1, path1, mount2, path2):
+        """
+        Move all the nodes from path1 to path2.
+        """
+
+        path1 = self._build_path(path1, mount1)
+        path2 = self._build_path(path2, mount2)
