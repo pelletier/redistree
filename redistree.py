@@ -219,7 +219,7 @@ class RedisTree(object):
         return json.loads(self.redis.get(path))
 
 
-    def get_children(self, mount, path, with_info=True):
+    def get_children(self, mount, path, with_info=True, show_deleted=True):
         """
         Returns the mounts and paths for all children in the given path
         """
@@ -251,6 +251,12 @@ class RedisTree(object):
         data = {}
 
         for key in final_keys:
-            data[key] = json.loads(self.redis.get(key))
+            d = json.loads(self.redis.get(key))
+            
+            if show_deleted:
+                data[key] = d
+            else:
+                if d['visible']:
+                    data[key] = d
             
         return data
