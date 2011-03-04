@@ -1,3 +1,4 @@
+import json
 import redis
 
 
@@ -111,7 +112,7 @@ class RedisTree(object):
 
         
         # If it does not, create it and inject data
-        self.redis.set(path, data)
+        self.redis.set(path, json.dumps(data))
 
         return (path, self.redis.get(path))
 
@@ -136,7 +137,10 @@ class RedisTree(object):
         # Delete all the keys for the given path
         keys = self.redis.keys("%s*" % path)
         for key in keys:
-            self.redis.hset(key, 'visible', False)
+            data = self.redis.get(key)
+            data = json.loads(data)
+            data['visible'] = False
+            self.redis.set(key, json.dumps(data))
 
         # Finally delete the lock key
         self.redis.delete(lock_key)
@@ -201,4 +205,5 @@ class RedisTree(object):
             final_keys.append(final)
 
         # Remove doubles
+        # See http://www.peterbe.com/plog/uniqifiers-benchmark
         return {}.fromkeys(final_keys).keys()
