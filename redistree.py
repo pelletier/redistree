@@ -28,6 +28,9 @@ class RedisTree(object):
         def __init__(self, path, key):
             self.value = "Cannot create %s because %s is being deleted." % (path, key)
 
+    class InvalidPath(RedisTreeException):
+        def __init__(self, msg):
+            self.value = msg
 
 
     #
@@ -38,10 +41,16 @@ class RedisTree(object):
         """
         Compute a normalized path for the given data.
         """
+        mount = mount.decode('utf-8')
+        path = path.decode('utf-8')
         if path[-1] == '/': # Normalization: we don't want a / at the end
             path = path[:-1]
-        return u"%spath:/%s/ROOT%s" % (self.redis_prefix, mount, path)
-
+        fpath = u"%spath:/%s/ROOT%s" % (self.redis_prefix, mount, path)
+        
+        if '' in fpath.split('/'):
+            raise InvalidPath('Empty path parts')
+        
+        return fpath
 
 
     #
@@ -80,8 +89,7 @@ class RedisTree(object):
         """
         Create a node (ie a folder or a path).
         """
-        mount = mount.decode('utf-8')
-        path = path.decode('utf-8')
+
         path = self._build_path(mount, path)
 
         # By default the node is visible. Visible is a required node attribute
@@ -126,8 +134,6 @@ class RedisTree(object):
         Delete the given node.
         According to the specs, the node is just hide.
         """
-        mount = mount.decode('utf-8')
-        path = path.decode('utf-8')
         path = self._build_path(mount, path)
 
         # Test if the node exist
@@ -159,11 +165,6 @@ class RedisTree(object):
         Move all the nodes from path1 to path2. We use the nix way to handle
         the path renames.
         """
-        mount1 = mount.decode('utf-8')
-        mount2 = mount.decode('utf-8')
-        path1 = path.decode('utf-8')
-        path2 = path.decode('utf-8')
-
         path1 = self._build_path(path1, mount1)
         path2 = self._build_path(path2, mount2)
         
@@ -196,9 +197,6 @@ class RedisTree(object):
         """
         Returns the mounts and paths for all children in the given path
         """
-        mount = mount.decode('utf-8')
-        path = path.decode('utf-8')
-
         path = self._build_path(mount, path)
 
         # We first have to check that the first exists
