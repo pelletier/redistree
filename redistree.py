@@ -177,3 +177,28 @@ class RedisTree(object):
         pipe.execute()
 
         return (path1, path2)
+
+    def get_children(self, mount, path):
+        """
+        Returns the mounts and paths for all children in the given path
+        """
+
+        path = self._build_path(mount, path)
+
+        # We first have to check that the first exists
+        if not self.redis.exists(path1):
+            raise NodeDoesNotExist(path)
+
+        # Get keys
+        keys = self.redis.keys('%s/*' % path)
+
+        final_keys = []
+
+        # Group names
+        for key in keys:
+            key.replace('%s/' % path, '')
+            final = '/'.join(path, key[0])
+            final_keys.append(final)
+
+        # Remove doubles
+        return {}.fromkeys(final_keys).keys()
