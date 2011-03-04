@@ -275,12 +275,32 @@ class TestRedisTreeMove(unittest.TestCase):
         Move /A in /B/a/z
         so the we will end up with /B/a/z/a/  /B/a/z/b/  /B/a/z/c/  /B/a/z/c/hello/
         """
-        move = self.tree.move(self.mount, '/A/a', self.mount, '/B/a/z')
+        move = self.tree.move(self.mount, '/A', self.mount, '/B/a/z')
         children = self.tree.get_children(
             mount=self.mount,
             path='/B/a/z'
         )
-        print children
         self.assertEqual(len(children), 3)
  
- 
+        try:
+            children = self.tree.get_children(
+                mount=self.mount,
+                path='/A'
+            )
+        except NodeDoesNotExist:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+
+    def test_move_to_self_children(self):
+        """
+        Move /A in /A/b
+        Should fail
+        """
+        try:
+            move = self.tree.move(self.mount, '/A', self.mount, '/A/b')
+        except InvalidMoveOperation:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
