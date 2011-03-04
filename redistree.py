@@ -34,7 +34,7 @@ class InvalidPath(RedisTreeException):
 
 class RedisTree(object):
 
-    
+
     #
     # PRIVATE METHODS
     #
@@ -205,7 +205,7 @@ class RedisTree(object):
         path = self._build_path(mount, path)
 
         # We first have to check that the first exists
-        if not self.redis.exists(path1):
+        if not self.redis.exists(path):
             raise NodeDoesNotExist(path)
 
         # Get keys

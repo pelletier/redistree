@@ -93,3 +93,25 @@ class TestRedisTreeGetChildren(unittest.TestCase):
         self.redis_inst = redis.Redis(db=9)
         self.redis_inst.flushdb()
         self.tree = RedisTree(redis_instance=self.redis_inst)
+
+
+    def test_children_on_long_path(self):
+        """
+        Test long path
+        """
+        mount=u"user#12"
+        path="/aaa/bbb/ccc/ddd"
+
+        root = self.tree.create_node(
+            mount=mount,
+            path=path,
+            data={}
+        )
+
+        children = self.tree.get_children(
+            mount=mount,
+            path=path
+        )
+
+
+        print children
