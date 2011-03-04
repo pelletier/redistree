@@ -207,6 +207,18 @@ class RedisTree(object):
 
         return (path1, path2)
 
+    def get_info(self, mount, path):
+        """
+        Return metadata
+        """
+        path = self._build_path(mount, path)
+
+        if not self.redis.exists(path):
+            raise NodeDoesNotExist(path)
+
+        return json.loads(self.redis.get(path))
+
+
     def get_children(self, mount, path, with_info=True):
         """
         Returns the mounts and paths for all children in the given path
