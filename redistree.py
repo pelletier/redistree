@@ -4,35 +4,37 @@ import json
 import redis
 
 
+#
+# EXCEPTIONS
+#
+
+class RedisTreeException(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+class NodeAlreadyExists(RedisTreeException):
+    def __init__(self, p):
+        self.value = "Node at %s already exists."
+
+class NodeDoesNotExist(RedisTreeException):
+    def __init__(self, p):
+        self.value = "Node at %s does not exist."
+
+class IsBeingDeleted(RedisTreeException):
+    def __init__(self, path, key):
+        self.value = "Cannot create %s because %s is being deleted." % (path, key)
+
+class InvalidPath(RedisTreeException):
+    def __init__(self, msg):
+        self.value = msg
+
+
+
 class RedisTree(object):
 
-    #
-    # EXCEPTIONS
-    #
-
-    class RedisTreeException(Exception):
-        def __init__(self, value):
-            self.value = value
-        def __str__(self):
-            return repr(self.value)
-
-    class NodeAlreadyExists(RedisTreeException):
-        def __init__(self, p):
-            self.value = "Node at %s already exists."
-
-    class NodeDoesNotExist(RedisTreeException):
-        def __init__(self, p):
-            self.value = "Node at %s does not exist."
-
-    class IsBeingDeleted(RedisTreeException):
-        def __init__(self, path, key):
-            self.value = "Cannot create %s because %s is being deleted." % (path, key)
-
-    class InvalidPath(RedisTreeException):
-        def __init__(self, msg):
-            self.value = msg
-
-
+    
     #
     # PRIVATE METHODS
     #

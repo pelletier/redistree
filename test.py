@@ -60,13 +60,30 @@ class TestRedisTreeCreate(unittest.TestCase):
                     data={}
             )
             print root
-        except RedisTreeException:
+        except InvalidPath:
             self.assertTrue(True)
         else:
             self.assertTrue(False)
 
+    def test_create_wrong_path2(self):
+        """
+        Test faulty path creation (relative not allowed)
+        """
+        try:
+            root = self.tree.create_node(
+                    mount=u"user#12",
+                    path="/../",
+                    data={}
+            )
+            print root
+        except InvalidPath:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+
    
- class TestRedisTreeGetChildren(unittest.TestCase):
+class TestRedisTreeGetChildren(unittest.TestCase):
     """
     Test children listing
     """
@@ -76,4 +93,3 @@ class TestRedisTreeCreate(unittest.TestCase):
         self.redis_inst = redis.Redis(db=9)
         self.redis_inst.flushdb()
         self.tree = RedisTree(redis_instance=self.redis_inst)
-        
