@@ -51,6 +51,9 @@ class RedisTree(object):
         
         if '' in fpath.split('/'):
             raise InvalidPath('Empty path parts')
+
+        if '..' in fpath:
+            raise InvalidPath('A path should not contain ..')
         
         return fpath
 
