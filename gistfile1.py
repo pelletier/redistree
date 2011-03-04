@@ -26,6 +26,7 @@ class RedisTree(object):
             self.value = "Cannot create %s because %s is being deleted." % (path, key)
 
 
+
     #
     # PRIVATE METHODS
     #
@@ -145,8 +146,34 @@ class RedisTree(object):
 
     def move(self, mount1, path1, mount2, path2):
         """
-        Move all the nodes from path1 to path2.
+        Move all the nodes from path1 to path2. We use the nix way to handle
+        the path renames.
         """
 
         path1 = self._build_path(path1, mount1)
         path2 = self._build_path(path2, mount2)
+        
+        # We first have to check that the first exists
+        if not self.redis.exists(path1):
+            raise NodeDoesNotExist(path)
+
+        # Then we check the parent of the second path
+        parent_path2 = '/'.join(path2.split('/')[:-1])
+        if not self.redis.exists(parent_path2):
+            raise NodeDoesNotExist(parent_path2)
+
+        # Otherwise we move the keys
+        self.redis.delete(path1)
+        keys_to_rename = self.redis.keys('%s/*' % path1)
+        
+        # Create a pipeline for atomicity
+        pipe = self.redis.pipeline()
+
+        for key in keys_to_rename:
+            new_name = key.replace(path1, path2)
+            pipe.rename(key, new_name)
+
+        # Fire changes
+        pipe.execute()
+
+        return (path1, path2)
