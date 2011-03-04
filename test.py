@@ -275,12 +275,99 @@ class TestRedisTreeMove(unittest.TestCase):
         Move /A in /B/a/z
         so the we will end up with /B/a/z/a/  /B/a/z/b/  /B/a/z/c/  /B/a/z/c/hello/
         """
-        move = self.tree.move(self.mount, '/A/a', self.mount, '/B/a/z')
+        move = self.tree.move(self.mount, '/A', self.mount, '/B/a/z')
         children = self.tree.get_children(
             mount=self.mount,
             path='/B/a/z'
         )
-        print children
         self.assertEqual(len(children), 3)
  
- 
+
+
+class TestRedisTreeInfo(unittest.TestCase):
+    """
+    Test the information retrieval.
+    """
+
+    def setUp(self):
+        self.redis = redis.Redis(db=9)
+        self.redis.flushdb()
+        self.tree = RedisTree(redis_instance=self.redis)
+
+    def test_get_info(self):
+        i = {
+            'date': '01/01/2001',
+            'author': 'me',
+        }
+
+        self.tree.create('user#18', '/', i)
+        r = self.tree.get_info('user#18', '/')
+        self.assertEqual(r, i)
+
+    def test_get_info_utf8(self):
+        i = {
+            'date': '01/01/2001',
+            'author': u'mé',
+        }
+
+        self.tree.create('user#18', '/', i)
+        r = self.tree.get_info('user#18', '/')
+        self.assertEqual(r, i)
+
+
+class TestRedisTreeSymlinks(unittest.TestCase):
+    """
+    Add symlinks for shares support.
+    """
+
+    def setUp(self):
+        self.redis = redis.Redis(db=9)
+        self.redis.flushdb()
+        self.tree = RedisTree(redis_instance=self.redis)
+        dirs = {
+            'user#1': [
+                '/',
+                '/A',
+                '/A/B',
+                '/A/B/C',
+                '/A/B/C/D'
+            ],
+            'user#2': [
+                '/',
+                '/F',
+                '/F/G',
+            ]
+        }
+        for m, ds in dirs.iteritems():
+            for d in ds:
+                self.tree.create(m, d)
+
+        self.p, self.d = self.tree.link('user#2', '/F/H', 'user#1', '/A/B')
+
+    def test_create_link(self):
+        """
+        user#1/A/B/C/D
+        user#2/F/G
+              /F/H
+        link user#2/F/H -> user#1/A/B
+        """ 
+        results = len(self.tree.get_children('user#2', '/F/H{path:/user#1/ROOT/A/B}'))
+        self.assertEqual(results, 1)
+
+        results = len(self.tree.get_children('user#2', '/F/H{path:/user#1/ROOT/A/B}/C'))
+        self.assertEqual(results, 1)
+
+    def test_create_link_type(self):
+        self.assertEqual(self.d['type'], 'link')
+        self.assertEqual(self.d, json.loads(self.redis.get(self.p)))
+
+
+    def test_delete_in_link(self):
+
+        self.tree.delete('user#1', '/A/B/C')
+
+        r = self.tree.get_children('user#2', '/F/H{path:/user#1/ROOT/A/B}')
+
+        self.assertEqual(len(r), 1)
+        self.assertEqual(r[u'path:/user#2/ROOT/F/H{path:/user#1/ROOT/A/B}/C']['visible'], False)
+

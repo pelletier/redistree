@@ -1,5 +1,6 @@
 #-*- coding: utf-8 -*-
 
+import re
 import json
 import redis
 
@@ -16,11 +17,11 @@ class RedisTreeException(Exception):
 
 class NodeAlreadyExists(RedisTreeException):
     def __init__(self, p):
-        self.value = "Node at %s already exists."
+        self.value = "Node at %s already exists." % p
 
 class NodeDoesNotExist(RedisTreeException):
     def __init__(self, p):
-        self.value = "Node at %s does not exist."
+        self.value = "Node at %s does not exist." % p
 
 class IsBeingDeleted(RedisTreeException):
     def __init__(self, path, key):
@@ -66,8 +67,11 @@ class RedisTree(object):
         return fpath
 
     def _has_parent(self, path):
-        parent_path = '/'.join(path.split('/')[:-1])
-        if not path.split('/')[-1] == 'ROOT':
+        p = path
+        if '{' in p:
+            p = re.sub(r'\{.*?\}', '', p)
+        parent_path = '/'.join(p.split('/')[:-1])
+        if not p.split('/')[-1] == 'ROOT':
             if not self.redis.exists(parent_path):
                 raise NoParent(path)
 
@@ -119,7 +123,7 @@ class RedisTree(object):
         self._has_parent(path)
 
         # We first have to check that the creation does not happen in a path
-        # which is being delete.
+        # which is being deleted.
         delete_keys = self.redis.keys('%s:delete:*' % self.redis_prefix)
 
         for key in delete_keys:
@@ -155,6 +159,7 @@ class RedisTree(object):
         According to the specs, the node is just hide.
         """
         path = self._build_path(mount, path)
+        orig = path
 
         # Test if the node exist
         node_exists = self.redis.exists(path)
@@ -167,17 +172,35 @@ class RedisTree(object):
         self.redis.setex(lock_key, 'deleting', 60*5)
 
         # Delete all the keys for the given path
-        keys = self.redis.keys("%s*" % path)
+        p = ':'.join(path.split(':')[1:])
+        keys = self.redis.keys("path:*%s*" % p)
+
         for key in keys:
             data = self.redis.get(key)
             data = json.loads(data)
             data['visible'] = False
             self.redis.set(key, json.dumps(data))
 
+
+        for k in self.redis.keys('link:*'):
+            v = ':'.join(k.split(':')[1:])
+            if v in path:
+                path = path.replace(v, '{%s}' % v)
+                break
+
+        keys = self.redis.keys("path:*%s*" % path)
+
+        for key in keys:
+            data = self.redis.get(key)
+            data = json.loads(data)
+            data['visible'] = False
+            self.redis.set(key, json.dumps(data))
+
+
         # Finally delete the lock key
         self.redis.delete(lock_key)
 
-        return (path, json.loads(self.redis.get(path)))
+        return (orig, json.loads(self.redis.get(orig)))
 
 
     def move(self, mount1, path1, mount2, path2):
@@ -200,8 +223,9 @@ class RedisTree(object):
 
         # Otherwise we move the keys
         self.redis.delete(path1)
-        keys_to_rename = self.redis.keys('%s/*' % path1)
-        
+        keys_to_rename = self.redis.keys('*')
+        #keys_to_rename = self.redis.keys('%s/*' % path1)
+
         # Create a pipeline for atomicity
         pipe = self.redis.pipeline()
 
@@ -267,3 +291,44 @@ class RedisTree(object):
                     data[key] = d
             
         return data
+
+    def link(self, mount1, path1, mount2, path2):
+        """
+        Symlink the (m1,p1) to (m2,p2).
+        """
+        p1 = self._build_path(mount1, path1)
+        p2 = self._build_path(mount2, path2)
+        
+        # Path1 should not exist (we create it with a special link type)
+        if self.redis.exists(p1):
+            raise NodeAlreadyExists(p1)
+
+        # Path2 should exist (we cannot point to nothing)
+        if not self.redis.exists(p2):
+            raise NodeDoesNotExist(p2)
+
+        # Compute the full path
+        full_path = "%s{%s}" % (p1, p2)
+        
+        # Replicate children
+        orig_children = self.redis.keys("*%s*" % p2)
+
+        # Create the link node
+        link_node_path = "%s{%s}" % (path1,p2)
+        self.create(mount1, link_node_path, {
+            'type': 'link',
+        })
+
+        # Replicate the original children
+        for ch in orig_children:
+            data = self.redis.get(ch)
+            new_ch = "%s%s" % (full_path, ch.replace(p2, ''))
+            self.redis.set(new_ch, data)
+
+        self.redis.set(full_path, json.dumps({'type':'link','visible':True}))
+
+
+        self.redis.set('link:%s' % p2, full_path)
+
+
+        return (full_path, json.loads(self.redis.get(full_path)))
