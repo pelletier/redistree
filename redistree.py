@@ -80,6 +80,8 @@ class RedisTree(object):
         """
         Create a node (ie a folder or a path).
         """
+        mount = mount.decode('utf-8')
+        path = path.decode('utf-8')
         path = self._build_path(mount, path)
 
         # By default the node is visible. Visible is a required node attribute
@@ -93,7 +95,7 @@ class RedisTree(object):
         delete_keys = self.redis.keys('%s:delete:*' % self.redis_prefix)
 
         for key in delete_keys:
-            if path.startswith(key):
+            if path.sdecodewith(key):
                 # This happen during a delete
                 raise IsBeingDeleted(path, key)
 
@@ -124,6 +126,8 @@ class RedisTree(object):
         Delete the given node.
         According to the specs, the node is just hide.
         """
+        mount = mount.decode('utf-8')
+        path = path.decode('utf-8')
         path = self._build_path(mount, path)
 
         # Test if the node exist
@@ -155,6 +159,10 @@ class RedisTree(object):
         Move all the nodes from path1 to path2. We use the nix way to handle
         the path renames.
         """
+        mount1 = mount.decode('utf-8')
+        mount2 = mount.decode('utf-8')
+        path1 = path.decode('utf-8')
+        path2 = path.decode('utf-8')
 
         path1 = self._build_path(path1, mount1)
         path2 = self._build_path(path2, mount2)
@@ -188,6 +196,8 @@ class RedisTree(object):
         """
         Returns the mounts and paths for all children in the given path
         """
+        mount = mount.decode('utf-8')
+        path = path.decode('utf-8')
 
         path = self._build_path(mount, path)
 

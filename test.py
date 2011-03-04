@@ -37,5 +37,5 @@ class TestRedisTreeBasic(unittest.TestCase):
             path="/é",
             data={}
         )
-        self.assertEqual(root[0], u"path:/user#12/é")    
+        self.assertEqual(root[0], u"path:/user#12/ROOT/é")    
  
