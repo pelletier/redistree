@@ -99,7 +99,7 @@ class RedisTree(object):
             self.redis_prefix = "%s:" % self.redis_prefix
 
 
-    def create_node(self, mount, path, data={}):
+    def create(self, mount, path, data={}):
         """
         Create a node (ie a folder or a path).
         """
@@ -134,7 +134,7 @@ class RedisTree(object):
             while self.redis.exists(temp_path):
                 # Increment
                 counter += 1
-                temp_path = "%s (%s)" % (path, counter)
+                temp_path = "%s(%s)" % (path, counter)
 
             path = temp_path
 
@@ -145,7 +145,7 @@ class RedisTree(object):
         return (path, json.loads(self.redis.get(path)))
 
 
-    def delete_node(self, mount, path):
+    def delete(self, mount, path):
         """
         Delete the given node.
         According to the specs, the node is just hide.
@@ -181,8 +181,8 @@ class RedisTree(object):
         Move all the nodes from path1 to path2. We use the nix way to handle
         the path renames.
         """
-        path1 = self._build_path(path1, mount1)
-        path2 = self._build_path(path2, mount2)
+        path1 = self._build_path(mount1, path1)
+        path2 = self._build_path(mount2, path2)
         
         # We first have to check that the first exists
         if not self.redis.exists(path1):
