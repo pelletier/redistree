@@ -5,6 +5,23 @@ import json
  
 from redistree import *
 
+
+PATHS_1 = [
+    '/',
+    '/A',
+    '/B',
+    '/C',
+    '/A/a',
+    '/A/b',
+    '/A/c',
+    '/B/a',
+    '/B/a/x',
+    '/B/a/y',
+    '/B/a/x/ooo',
+    '/B/a/x/ooo/m',
+    '/B/a/z',
+]
+
 class TestRedisTreeCreate(unittest.TestCase):
 
     def setUp(self):
@@ -31,23 +48,31 @@ class TestRedisTreeCreate(unittest.TestCase):
         Test unicode path creation
         """
         root = self.tree.create_node(
+            mount="user#12",
+            path="/",
+            data={}
+        )
+        d1 = self.tree.create_node(
             mount=u"user#12",
             path="/é",
             data={}
         )
-        self.assertEqual(root[0], u"path:/user#12/ROOT/é")    
+        self.assertEqual(d1[0], u"path:/user#12/ROOT/é")    
  
     def test_create_multi_path(self):
         """
         Test long path
         """
-        root = self.tree.create_node(
-            mount=u"user#12",
-            path="/aaa/bbb/ccc/ddd",
-            data={}
-        )
-        self.assertEqual(root[0], u"path:/user#12/ROOT/aaa/bbb/ccc/ddd")    
-    
+        try:
+            root = self.tree.create_node(
+                mount=u"user#12",
+                path="/aaa/bbb/ccc/ddd",
+                data={}
+            )
+        except NoParent:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)    
 
     def test_create_wrong_path(self):
         """
@@ -59,7 +84,6 @@ class TestRedisTreeCreate(unittest.TestCase):
                     path="///",
                     data={}
             )
-            print root
         except InvalidPath:
             self.assertTrue(True)
         else:
@@ -82,11 +106,25 @@ class TestRedisTreeCreate(unittest.TestCase):
             self.assertTrue(False)
 
 
+    def test_cplx_tree_creation(self):
+        """
+        Several path
+        """
+        for p in PATHS_1:
+            self.tree.create_node(
+                mount=u"user#13",
+                path=p,
+                data={}
+            )
+        self.assertTrue(True)
+
+
    
 class TestRedisTreeGetChildren(unittest.TestCase):
     """
     Test children listing
     """
+
 
     def setUp(self):
         "set up Test db redis (9)"
@@ -95,23 +133,25 @@ class TestRedisTreeGetChildren(unittest.TestCase):
         self.tree = RedisTree(redis_instance=self.redis_inst)
 
 
+
     def test_children_on_long_path(self):
         """
         Test long path
         """
-        mount=u"user#12"
-        path="/aaa/bbb/ccc/ddd"
-
-        root = self.tree.create_node(
-            mount=mount,
-            path=path,
-            data={}
-        )
-
+        mount = "user#13"
+        for p in PATHS_1:
+            self.tree.create_node(
+                mount=mount,
+                path=p,
+                data={}
+            )
+  
+        # Test children of /aaa/bbb/ccc/ddd is []
         children = self.tree.get_children(
             mount=mount,
-            path=path
+            path='/A'
         )
-
-
         print children
+        self.assertEqual(len(children), 3)
+
+ 

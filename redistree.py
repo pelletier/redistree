@@ -61,9 +61,9 @@ class RedisTree(object):
         
         return fpath
 
-    def _has_parent(self):
+    def _has_parent(self, path):
         parent_path = '/'.join(path.split('/')[:-1])
-        if not path == '/':
+        if not path.split('/')[-1] == 'ROOT':
             if not self.redis.exists(parent_path):
                 raise NoParent(path)
 
@@ -112,7 +112,7 @@ class RedisTree(object):
         if visible == None:
             data['visible'] = True
 
-        ._has_parent(path)
+        self._has_parent(path)
 
         # We first have to check that the creation does not happen in a path
         # which is being delete.
@@ -189,7 +189,7 @@ class RedisTree(object):
             raise NodeDoesNotExist(path)
 
         # Then we check the parent of the second path
-        ._has_parent(path2)
+        self._has_parent(path2)
 
         # Otherwise we move the keys
         self.redis.delete(path1)
@@ -225,7 +225,7 @@ class RedisTree(object):
         # Group names
         for key in keys:
             key.replace('%s/' % path, '')
-            final = '/'.join(path, key[0])
+            final = '/'.join([path, key[0]])
             final_keys.append(final)
 
         # Remove doubles
