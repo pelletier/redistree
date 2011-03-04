@@ -30,6 +30,10 @@ class InvalidPath(RedisTreeException):
     def __init__(self, msg):
         self.value = msg
 
+class NoParent(RedisTreeException):
+    def __init__(self, path):
+        self.value = "Parent of %s does not exist." % path
+
 
 
 class RedisTree(object):
@@ -102,6 +106,10 @@ class RedisTree(object):
         visible = data.get('visible', None)
         if visible == None:
             data['visible'] = True
+
+        parent_path = '/'.join(path.split('/')[:-1])
+        if not self.redis.exists(parent_path):
+            raise NoParent(path)
 
         # We first have to check that the creation does not happen in a path
         # which is being delete.
@@ -180,7 +188,7 @@ class RedisTree(object):
         # Then we check the parent of the second path
         parent_path2 = '/'.join(path2.split('/')[:-1])
         if not self.redis.exists(parent_path2):
-            raise NodeDoesNotExist(parent_path2)
+            raise NoParent(path2)
 
         # Otherwise we move the keys
         self.redis.delete(path1)
