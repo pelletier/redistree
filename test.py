@@ -3,6 +3,10 @@
 import unittest
 import json
  
+import random
+import string
+import time
+from datetime import timedelta, datetime
 from redistree import *
 
 
@@ -393,3 +397,59 @@ class TestRedisTreeSymlinks(unittest.TestCase):
         self.assertEqual(len(r), 1)
         self.assertEqual(r[u'path:/user#2/ROOT/F/H{path:/user#1/ROOT/A/B}/C']['visible'], False)
 
+
+
+class TestRedisStress(unittest.TestCase):
+    """
+    Heavy move and create ops
+    """
+
+    def setUp(self):
+        self.redis = redis.Redis(db=9)
+        self.redis.flushdb()
+        self.tree = RedisTree(redis_instance=self.redis)
+        
+
+    def test_multi_create(self):
+        """
+        Test creation of many nodes (10 000)  
+        """
+        # create cp root for later move test
+        self.tree.create(
+            mount="load_cp",
+            path="/",
+            data={}
+        )
+
+        # Create 11k nodes
+        mount="load_1"
+        ccount = 0
+        for p in PATHS_1:
+            self.tree.create(mount=mount, path=p)
+            ccount += 1
+
+        for p in PATHS_1:
+            for i in range(1,100):
+                #random_name = ''.join(random.choice(string.letters) for i in xrange(10))
+                if p == '/':
+                    np =  "%s%s" % (p , str(ccount))
+                else:
+                    np =  "%s/%s" % (p , str(ccount))
+                
+                self.tree.create(mount=mount, path=np)
+                ccount += 1
+        print "%s nodes created" % (ccount)
+        t1 = datetime.now()
+        move = self.tree.move(mount, '/', 'load_cp', '/')
+        t2 = datetime.now()
+        d =  t2 - t1
+        print d 
+
+        children = self.tree.get_children(
+            mount='load_cp',
+            path='/B/a/x/ooo'
+        )
+
+        self.assertTrue(len(children), 10000)
+
+ 

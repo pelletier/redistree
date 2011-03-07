@@ -35,7 +35,6 @@ class NoParent(RedisTreeException):
     def __init__(self, path):
         self.value = "Parent of %s does not exist." % path
 
-
 class InvalidMoveOperation(RedisTreeException):
     def __init__(self, msg):
         self.value = msg
@@ -181,7 +180,7 @@ class RedisTree(object):
             data['visible'] = False
             self.redis.set(key, json.dumps(data))
 
-
+        # symlinks
         for k in self.redis.keys('link:*'):
             v = ':'.join(k.split(':')[1:])
             if v in path:
@@ -224,6 +223,8 @@ class RedisTree(object):
         # Otherwise we move the keys
         self.redis.delete(path1)
         keys_to_rename = self.redis.keys('*')
+        #TODO: test is it checking all the keys ??
+
         #keys_to_rename = self.redis.keys('%s/*' % path1)
 
         # Create a pipeline for atomicity
