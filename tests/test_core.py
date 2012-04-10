@@ -1,7 +1,7 @@
 from time import time
 from unittest import TestCase
 import redis
-from ..redistree import RedisTree
+from redistree import RedisTree
 
 
 class TestCreateRedisTree(TestCase):
