@@ -117,8 +117,6 @@ class RedisTree:
 
     def get_children(self, path):
         result = self.r.hgetall("TREE:%s" % path)
-        if not result:
-            raise Exception("Broken path")
         return result
 
     def create_symlink(self, target_path, path):
@@ -138,3 +136,33 @@ class RedisTree:
 
     def is_symlink(self, path):
         return bool(self.get_target(path))
+
+    def delete(self, rpath):
+
+        def perform_delete(path, given_uid):
+            parent, name = posixpath.split(path)
+            pipe = self.r.pipeline()
+            pipe.hget("TREE:%s" % parent, name)
+            pipe.hgetall("TREE:%s" % path)
+            pipe.delete("TREE:%s" % path)
+            if given_uid == None:
+                pipe.hdel("TREE:%s" % parent, name)
+            res = pipe.execute()
+            uid = res[0]
+            info = res[1]
+
+            if not uid and not given_uid == None:
+                uid = given_uid
+
+            if not uid:
+                raise Exception("Broken path")
+
+            # Now that the TREE entry has been deleted, we can remove the NODE entry
+            # and the children in a non atomic manner.
+
+            self.r.delete("NODE:%s" % uid)
+
+            for children, node in info.iteritems():
+                perform_delete('/'.join([path, children]), node)
+
+        return perform_delete(rpath, None)
