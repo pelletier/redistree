@@ -24,12 +24,14 @@ class TestInit(TestCase):
         self.assertEqual(r.get('NODE_COUNTER'), "-9223372036854775807"),
         self.assertEqual(r.hgetall('NODE:-9223372036854775807'), {'name':'root'})
 
-class TestNodes(TestCase):
+class InitRedisTreeCase(TestCase):
 
     def setUp(self):
         self.rt = RedisTree()
         self.rt.r.flushdb()
         self.rt.init_fs()
+
+class TestNodes(InitRedisTreeCase):
 
     def test_get_root_node_from_path(self):
         self.assertEqual(self.rt.get_node_at_path('/'), self.rt.ROOT_NODE)
@@ -92,10 +94,7 @@ class TestNodes(TestCase):
         expected['alice'] = self.rt.create_child_node('/foo/alice')
         children = self.rt.get_children('/foo')
 
-        self.assertEqual(len(expected), len(children))
-
-        for key, value in expected.iteritems():
-            self.assertEqual(value, children[key])
+        self.assertEqual(expected, children)
 
     def test_get_children_of_missing_node(self):
         self.assertRaises(Exception, self.rt.get_children, '/nobody')
@@ -130,3 +129,29 @@ class TestNodes(TestCase):
         self.assertEqual(self.rt.get_node_at_path('/shortcut/foo'), uid)
         elapsed = time() - start
         self.assertTrue(elapsed < 0.001)
+
+
+class TestSymlinks(InitRedisTreeCase):
+
+    def test_create_symlink(self):
+        expected = {}
+        expected['foo'] = self.rt.create_child_node('/foo')
+        bar_uid = self.rt.create_child_node('/foo/bar')
+        expected['me'] = self.rt.create_symlink('/foo/bar', '/me')
+        self.assertEqual(expected, self.rt.get_children('/'))
+        info = self.rt.get_node_info(expected['me'])
+        self.assertEqual(info['target'], '/foo/bar')
+        self.assertEqual(info['target_node'], bar_uid)
+
+    def test_get_target(self):
+        self.rt.create_child_node('/foo')
+        self.rt.create_child_node('/foo/bar')
+        self.rt.create_symlink('/foo/bar', '/me')
+        self.assertEqual('/foo/bar', self.rt.get_target('/me'))
+
+    def test_is_symlink(self):
+        self.rt.create_child_node('/foo')
+        self.rt.create_child_node('/foo/bar')
+        self.rt.create_symlink('/foo/bar', '/me')
+        self.assertTrue(self.rt.is_symlink('/me'))
+        self.assertFalse(self.rt.is_symlink('/foo/bar'))

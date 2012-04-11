@@ -123,7 +123,7 @@ class RedisTree:
 
     def create_symlink(self, target_path, path):
         target_node = self.get_node_at_path(target_path)
-        uid = self.create_child_node(path, {
+        return self.create_child_node(path, {
             'target': target_path,
             'target_node': target_node
         })
