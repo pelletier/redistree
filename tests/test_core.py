@@ -173,7 +173,7 @@ class TestNodes(InitRedisTreeCase):
         self.assertEqual(len(self.rt.r.keys("TREE:*")), 0)
         self.assertEqual(len(self.rt.r.keys("NODE:*")), 1)
 
-        self.assertTrue(elapsed < 0.04)
+        self.assertTrue(elapsed < 0.06)
 
     def test_delete_in_symlink(self):
         self.rt.create_child_node('/foo')
