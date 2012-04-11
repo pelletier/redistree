@@ -128,7 +128,7 @@ class TestNodes(InitRedisTreeCase):
         start = time()
         self.assertEqual(self.rt.get_node_at_path('/shortcut/foo'), uid)
         elapsed = time() - start
-        self.assertTrue(elapsed < 0.001)
+        self.assertTrue(elapsed < 0.002)
 
     def test_delete_simple(self):
         self.rt.create_child_node('/foo')
