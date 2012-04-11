@@ -143,7 +143,9 @@ class RedisTree:
     def is_symlink(self, path):
         return bool(self.get_target(path))
 
-    def delete_node(self, rpath):
+    def delete_node(self, apath):
+
+        rpath = self.get_real_path(apath)
 
         def perform_delete(path, given_uid):
             parent, name = posixpath.split(path)
