@@ -142,6 +142,7 @@ class TestSymlinks(InitRedisTreeCase):
         info = self.rt.get_node_info(expected['me'])
         self.assertEqual(info['target'], '/foo/bar')
         self.assertEqual(info['target_node'], bar_uid)
+        self.assertEqual(expected['me'], self.rt.get_node_at_path('/me'))
 
     def test_get_target(self):
         self.rt.create_child_node('/foo')
