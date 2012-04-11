@@ -202,6 +202,25 @@ class TestNodes(InitRedisTreeCase):
         self.assertEqual('/me', self.rt.get_real_path('/me'))
 
 
+    def test_copy_node(self):
+        expected = {}
+        self.rt.create_child_node('/foo')
+        expected['bar'] = self.rt.create_child_node('/foo/bar')
+        expected['alice'] = self.rt.create_child_node('/foo/alice')
+        self.rt.create_child_node('/foo/bar/bob')
+
+        self.assertEqual(len(self.rt.r.keys("TREE:*")), 3)
+        self.assertEqual(len(self.rt.r.keys("NODE:*")), 5)
+        self.assertEqual(self.rt.get_children('/foo'), expected)
+
+        self.rt.copy_path('/foo', '/me')
+
+        self.assertEqual(len(self.rt.r.keys("TREE:*")), 5)
+        self.assertEqual(len(self.rt.r.keys("NODE:*")), 9)
+        self.assertEqual(self.rt.get_children('/foo'), expected)
+
+
+
 class TestSymlinks(InitRedisTreeCase):
 
     def test_create_symlink(self):

@@ -174,3 +174,19 @@ class RedisTree:
                 perform_delete('/'.join([path, children]), node)
 
         return perform_delete(rpath, None)
+
+    def clone_node(self, uid):
+        data = self.r.hgetall("NODE:%s" % uid)
+        return self.create_node(data)
+
+    def copy_path(self, source_path, dest_path):
+        dparent, dname = posixpath.split(dest_path)
+        rs_path, rs_node = self.real_node(source_path)
+        rd_path = self.get_real_path(dparent)
+
+        new_uid = self.clone_node(rs_node)
+        self.r.hset("TREE:%s" % rd_path, dname, new_uid)
+
+        for children, node in self.get_children(rs_path).iteritems():
+            self.copy_path('/'.join([source_path, children]),
+                           '/'.join([dest_path, children]))
