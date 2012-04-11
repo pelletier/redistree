@@ -139,7 +139,7 @@ class TestNodes(InitRedisTreeCase):
         self.assertEqual(len(self.rt.r.keys("TREE:*")), 3)
         self.assertEqual(len(self.rt.r.keys("NODE:*")), 5)
 
-        self.rt.delete('/foo/bar')
+        self.rt.delete_node('/foo/bar')
         # /foo lost its only child, so Redis deletes the key.
         self.assertEqual(len(self.rt.r.keys("TREE:*")), 1)
         self.assertEqual(len(self.rt.r.keys("NODE:*")), 2)
@@ -150,7 +150,7 @@ class TestNodes(InitRedisTreeCase):
         self.rt.create_child_node('/foo')
         self.assertEqual(len(self.rt.r.keys("TREE:*")), 1)
         self.assertEqual(len(self.rt.r.keys("NODE:*")), 2)
-        self.rt.delete('/foo')
+        self.rt.delete_node('/foo')
         self.assertEqual(len(self.rt.r.keys("TREE:*")), 0)
         self.assertEqual(len(self.rt.r.keys("NODE:*")), 1)
 
@@ -167,13 +167,24 @@ class TestNodes(InitRedisTreeCase):
         self.assertEqual(len(self.rt.r.keys("NODE:*")), n + 1)
 
         start = time()
-        self.rt.delete('/foo')
+        self.rt.delete_node('/foo')
         elapsed = time() - start
 
         self.assertEqual(len(self.rt.r.keys("TREE:*")), 0)
         self.assertEqual(len(self.rt.r.keys("NODE:*")), 1)
 
         self.assertTrue(elapsed < 0.04)
+
+    def test_real_path(self):
+        self.rt.create_child_node('/foo')
+        self.rt.create_child_node('/foo/bar')
+        self.rt.create_child_node('/foo/bar/bob')
+        self.rt.create_symlink('/foo/bar', '/me')
+        self.assertEqual('/foo/bar/bob', self.rt.get_real_path('/foo/bar/bob'))
+        self.assertEqual('/foo/bar/bob', self.rt.get_real_path('/me/bob'))
+
+        self.assertEqual('/', self.rt.get_real_path('/'))
+        self.assertEqual('/me', self.rt.get_real_path('/me'))
 
 
 class TestSymlinks(InitRedisTreeCase):

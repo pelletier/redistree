@@ -59,7 +59,8 @@ class RedisTree:
         self.r.hset("TREE:%s" % parent, name, new_uid)
         return str(new_uid)
 
-    def get_node_at_path(self, path):
+
+    def real_node(self, path):
         chunks = path.split('/')
         del chunks[0]
         if chunks[-1] == '':
@@ -90,7 +91,13 @@ class RedisTree:
                 current_path = ''
             current_path = '/'.join([current_path, next_chunk])
 
-        return current_node
+        return current_path, current_node
+
+    def get_node_at_path(self, path):
+        return self.real_node(path)[1]
+
+    def get_real_path(self, path):
+        return self.real_node(path)[0]
 
     def get_node_info(self, node_id):
         return self.r.hgetall("NODE:%s" % node_id)
@@ -126,7 +133,6 @@ class RedisTree:
             'target_node': target_node
         })
 
-
     def get_target(self, path):
         parent, name = posixpath.split(path)
         uid = self.r.hget("TREE:%s" % parent, name)
@@ -137,7 +143,7 @@ class RedisTree:
     def is_symlink(self, path):
         return bool(self.get_target(path))
 
-    def delete(self, rpath):
+    def delete_node(self, rpath):
 
         def perform_delete(path, given_uid):
             parent, name = posixpath.split(path)
