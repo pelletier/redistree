@@ -173,7 +173,7 @@ class TestNodes(InitRedisTreeCase):
         self.assertEqual(len(self.rt.r.keys("TREE:*")), 0)
         self.assertEqual(len(self.rt.r.keys("NODE:*")), 1)
 
-        self.assertTrue(elapsed < 0.03)
+        self.assertTrue(elapsed < 0.04)
 
 
 class TestSymlinks(InitRedisTreeCase):
