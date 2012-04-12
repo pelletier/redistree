@@ -2,9 +2,9 @@ import posixpath
 import redis
 
 
-class RedisTree:
+class RedisTreeCore:
     """
-    The Redis Tree implementation.
+    The Redistree basic implementation.
 
     Keys namespaces:
         * TREE: Keys part of the hierarchical structure.
@@ -12,14 +12,16 @@ class RedisTree:
 
     A link node must have:
         - target (containing the path it links to).
+        - target_node (containing the node id it links to).
     """
 
     def __init__(self, connection_pool=None, redis_host='localhost',
                                              redis_port=6379,
                                              redis_db=0):
 
-
-        self.ROOT_NODE = -9223372036854775808 + 1
+        # By definition, the root node is always the one with the smallest
+        # value.
+        self.ROOT_NODE = -9223372036854775807
 
         # Attach a connection pool if provided.
         if connection_pool:
@@ -39,20 +41,31 @@ class RedisTree:
         # Redis store strings as base-10 64 bit signed integers, so we start at
         # the smallest possible number and we start counting. If the number is
         # an issue, we may decide to use multiple counters.
+
         self.r.setnx('NODE_COUNTER', "-9223372036854775808")
         self.create_node({'name': 'root'})
 
     def create_node(self, attributes, uid=None):
+        """Create a NODE entry and assign it with the given attributes.
+        If uid is provided, the node will be created with this uid, erasing any
+        node already existing with this uid."""
+
         if uid == None:
             uid = self.r.incr('NODE_COUNTER')
 
         self.r.hmset("NODE:%s" % uid, attributes)
         return uid
 
-    def create_child_node(self, path, attributes=None):
+    def create_child_node(self, path, attributes=None, resolve=True):
+        """Create a node and attach it to the parent living at the given path.
+        If resolve is True, the given path will be expanded (symlinks will be
+        replaced basically). This is a rather slow operation, so if you are sure
+        there is no symlink in this path, prefer using with resolve=False."""
+
         parent, name = posixpath.split(path)
 
-        parent = self.get_real_path(parent, full=True)
+        if resolve:
+            parent = self.get_real_path(parent, full=True)
 
         if attributes == None:
             attributes = {'name': name}
@@ -63,6 +76,10 @@ class RedisTree:
 
 
     def real_node(self, path, full=False):
+        """Returns the expanded ("real") path version of the given path and the
+        node number.
+        If the node at path is a symlink, using full=True will follow it."""
+
         chunks = path.split('/')
         del chunks[0]
         if chunks[-1] == '':
@@ -99,15 +116,23 @@ class RedisTree:
         return current_path, current_node
 
     def get_node_at_path(self, *args, **kwargs):
+        """Return the path composant of real_node."""
         return self.real_node(*args, **kwargs)[1]
 
     def get_real_path(self, *args, **kwargs):
+        """Return the NODE uid composant of real_node."""
         return self.real_node(*args, **kwargs)[0]
 
     def get_node_info(self, node_id):
+        """Return the attributes of a node."""
         return self.r.hgetall("NODE:%s" % node_id)
 
     def move_node(self, orig_path, dest_path):
+        """Move the subtree starting at orig_path to dest_path.
+        Example:
+            move_node('/foo/bar', '/me')
+            /foo/bar/bob -> /me/bob"""
+
         parent, name = posixpath.split(orig_path)
         dest_parent, dest_name = posixpath.split(dest_path)
 
@@ -128,10 +153,13 @@ class RedisTree:
         pipe.execute()
 
     def get_children(self, path):
+        """Return a hash of name:node_uid of the gildren at the given path."""
         result = self.r.hgetall("TREE:%s" % path)
         return result
 
     def create_symlink(self, target_path, path):
+        """Create a symlink between one tree to another."""
+
         target_node = self.get_node_at_path(target_path)
         return self.create_child_node(path, {
             'target': target_path,
@@ -139,6 +167,8 @@ class RedisTree:
         })
 
     def get_target(self, path):
+        """Return the target of a symlink (where it points to)."""
+
         parent, name = posixpath.split(path)
         uid = self.r.hget("TREE:%s" % parent, name)
         if not uid:
@@ -146,9 +176,12 @@ class RedisTree:
         return self.r.hget("NODE:%s" % uid, 'target')
 
     def is_symlink(self, path):
+        """Return a boolean indicating whether the node is a symlink or not."""
         return bool(self.get_target(path))
 
     def delete_node(self, apath):
+        """Remove a subtree starting at apath and delete the associated node
+        entries."""
 
         rpath = self.get_real_path(apath)
 
@@ -181,10 +214,12 @@ class RedisTree:
         return perform_delete(rpath, None)
 
     def clone_node(self, uid):
+        """Clone a node entry and return the uid of the new node."""
         data = self.r.hgetall("NODE:%s" % uid)
         return self.create_node(data)
 
     def copy_path(self, source_path, dest_path):
+        """Copy a subtree starting at source_path to dest_path."""
         dparent, dname = posixpath.split(dest_path)
         rs_path, rs_node = self.real_node(source_path)
         rd_path = self.get_real_path(dparent)
@@ -195,3 +230,7 @@ class RedisTree:
         for children, node in self.get_children(rs_path).iteritems():
             self.copy_path('/'.join([source_path, children]),
                            '/'.join([dest_path, children]))
+
+
+class RedisTree(RedisTreeCore):
+    pass

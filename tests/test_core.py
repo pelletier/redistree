@@ -257,3 +257,12 @@ class TestSymlinks(InitRedisTreeCase):
         self.rt.create_symlink('/foo/bar', '/me')
         self.assertTrue(self.rt.is_symlink('/me'))
         self.assertFalse(self.rt.is_symlink('/foo/bar'))
+
+    def test_get_children_symlink(self):
+        expected = {}
+        self.rt.create_child_node('/foo')
+        expected['alice'] = self.rt.create_child_node('/foo/alice')
+        expected['bob'] = self.rt.create_child_node('/foo/bob')
+        self.rt.create_symlink('/foo', '/bar')
+        self.assertEqual(self.rt.get_children('/foo'), expected)
+        self.assertEqual(self.rt.get_children('/bar'), {})
