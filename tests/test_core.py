@@ -59,6 +59,17 @@ class TestNodes(InitRedisTreeCase):
         elapsed = time() - start
         self.assertTrue(elapsed < 0.02)
 
+    def test_create_inside_symlink(self):
+        self.rt.create_child_node('/foo')
+        self.rt.create_child_node('/foo/bar')
+        self.rt.create_symlink('/foo/bar', '/me')
+
+        self.assertEqual({}, self.rt.get_children('/foo/bar'))
+
+        uid = self.rt.create_child_node('/me/bob')
+
+        self.assertEqual({'bob': uid}, self.rt.get_children('/foo/bar'))
+
     def test_get_root_info(self):
         self.assertEqual(self.rt.get_node_info(self.rt.ROOT_NODE), {'name': 'root'})
 

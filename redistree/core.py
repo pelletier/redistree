@@ -52,6 +52,8 @@ class RedisTree:
     def create_child_node(self, path, attributes=None):
         parent, name = posixpath.split(path)
 
+        parent = self.get_real_path(parent, full=True)
+
         if attributes == None:
             attributes = {'name': name}
 
@@ -60,7 +62,7 @@ class RedisTree:
         return str(new_uid)
 
 
-    def real_node(self, path):
+    def real_node(self, path, full=False):
         chunks = path.split('/')
         del chunks[0]
         if chunks[-1] == '':
@@ -71,7 +73,7 @@ class RedisTree:
 
         while True:
             # Check if we are arrived.
-            if len(chunks) == 0:
+            if len(chunks) == 0 and not full:
                 break # current_node contains the node number.
 
             # Check if the current node is a link.
@@ -81,6 +83,9 @@ class RedisTree:
                 current_path = target
                 current_node = target_node
                 continue
+
+            if len(chunks) == 0 and full:
+                break
 
             # This is not a target and we are not arrived.
             next_chunk = chunks.pop(0)
@@ -93,11 +98,11 @@ class RedisTree:
 
         return current_path, current_node
 
-    def get_node_at_path(self, path):
-        return self.real_node(path)[1]
+    def get_node_at_path(self, *args, **kwargs):
+        return self.real_node(*args, **kwargs)[1]
 
-    def get_real_path(self, path):
-        return self.real_node(path)[0]
+    def get_real_path(self, *args, **kwargs):
+        return self.real_node(*args, **kwargs)[0]
 
     def get_node_info(self, node_id):
         return self.r.hgetall("NODE:%s" % node_id)
